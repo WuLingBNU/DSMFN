@@ -36,26 +36,6 @@ def wavelet_transform(time_series: np.ndarray, wavelet='db20', level=3):
     return np_wavelet_data, len_list
 
 
-def calculate_pearson(signal, lengths):
-    """输入形状是[n,时间点，脑区]"""
-    n = signal.shape[0]  # n
-    k = len(lengths)  # k
-    nodes = signal.shape[-1]
-    result = np.zeros((n, nodes, nodes, k))
-
-    # 计算每个时间段的起始和结束索引
-    start_index = 0
-    for idx, length in enumerate(lengths):
-        end_index = start_index + length
-        matirx = signal[:, start_index:end_index, :]
-        for i in range(matirx.shape[0]):
-            result[i, :, :, idx] = np.corrcoef(matirx[i], rowvar=False)
-
-        start_index = end_index
-
-    return result
-
-
 def calculate_pearson_for_each_band(wavelet_data: np.ndarray, length_list: List, return_tensor=True):
     correlated = calculate_pearson(wavelet_data, length_list)
     return torch.from_numpy(correlated) if return_tensor else correlated
