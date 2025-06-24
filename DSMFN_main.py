@@ -39,10 +39,10 @@ if __name__ == "__main__":
     m_parser.add_argument("--classes", type=int, default=2)  # 类别
     m_parser.add_argument("--lr", type=float, default=1e-3)  # 1e-3
     m_parser.add_argument("--batch_size", type=int, default=16)
-    m_parser.add_argument("--window_size", type=int, default=90)  # 40 50
-    m_parser.add_argument("--window_step", type=int, default=1)  # 2 3 4
+    m_parser.add_argument("--window_size", type=int, default=90)  
+    m_parser.add_argument("--window_step", type=int, default=1)  
     m_parser.add_argument("--wavelet_level", type=int, default=1)  # 小波变换的层数
-    m_parser.add_argument("--wavelet_fun", type=str, default="db4")  # db20 db4
+    m_parser.add_argument("--wavelet_fun", type=str, default="db4")  
     m_parser.add_argument("--if_load", type=int, default=0)
     m_parser.add_argument("--sum_fold", type=int, default=10)
     m_parser.add_argument("--only_test", type=int, default=0)
@@ -55,22 +55,16 @@ if __name__ == "__main__":
 
     fast_dev_run = False
     utils.set_seed(args.seed)
-    # 加载自己的数据——ADNI2
+    # 加载ADNI2
     mat_folder_path = "data/ADNI2"
     excel_file_path = "data/ADNI2_processed_subjects.xlsx"
     output_file_path = "data/data_pt/ADNI2_output_data.pt"
     save_txt_name = os.path.join("results/MCI2/", "my_data_save", "log.txt")
 
-    # 加载自己的数据——ADNI3
-    # mat_folder_path = "data/ADNI3"
-    # excel_file_path = "data/ADNI3_processed_subjects.xlsx"
-    # output_file_path = "data/data_pt/ADNI3_output_data.pt"
-    # save_txt_name = os.path.join("results/MCI3/", "my_data_save", "log.txt")
-
     all_data, all_labels, all_ids = load_or_generate_data(mat_folder_path, excel_file_path, output_file_path,
                                                           args.if_load)
     print("数据加载完毕！")  # [503, 130, 116]  [503,]
-    all_data = all_data.transpose(-1, -2)  # [503, 116, 130] 503被试，116脑区，130时间点，采用频率1/3秒
+    all_data = all_data.transpose(-1, -2)  
 
     time_points = all_data.shape[-1]
     num_brain_areas = all_data.shape[1]  # all_data.shape[1]
@@ -90,9 +84,7 @@ if __name__ == "__main__":
 
     for k, (train_idx, test_idx) in enumerate(skf.split(all_data, all_labels)):
         print("当前是kfold{}".format(k))
-        # if k < 2:
-        #     continue
-
+        
         try:
             del train_data_loader, test_data_loader, val_data_loader, MyTrainer, train_data, train_label, test_data, test_label, val_data, val_label
         except:
@@ -142,7 +134,7 @@ if __name__ == "__main__":
             dirpath='results/MCI2/my_save_folder/checkpoints/DSMFNet_test/fold-{}'.format(k),  # 保存路径
             filename='model-{epoch:02d}-{val_accuracy:.2f}',  # 文件名格式
             save_top_k=1,  # 保存最好的 k 个模型
-            mode='max',  # 因为是准确率，所以用'max'模式
+            mode='max',  
         )
 
         # 早停回调 - 这里可以设置最小提升阈值
@@ -196,8 +188,3 @@ if __name__ == "__main__":
             f.write(log)
     with open(save_txt_name, "a") as f:
         f.write("average acc {:.2%}\n----------------------\n".format(results.mean()))
-        # f.write("acc: {:.2f} ± {:.2f}\n".format(results.mean() * 100, results.std() * 100))
-        # f.write("sen: {:.2f} ± {:.2f}\n".format(sen.mean() * 100, sen.std() * 100))
-        # f.write("spe: {:.2f} ± {:.2f}\n".format(spe.mean() * 100, spe.std() * 100))
-        # f.write("auc: {:.2f} ± {:.2f}\n".format(auc.mean() * 100, auc.std() * 100))
-        # f.write("f1score: {:.2f} ± {:.2f}\n----------------------\n".format(f1score.mean() * 100, f1score.std() * 100))
