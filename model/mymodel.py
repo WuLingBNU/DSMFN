@@ -5,52 +5,6 @@ import torch.nn.init as init
 import math
 
 
-def initialize_weights(model):
-    for module in model.modules():
-        if isinstance(module, nn.Linear):
-            # Xavier initialization for linear layers
-            init.xavier_uniform_(module.weight)
-            if module.bias is not None:
-                init.constant_(module.bias, 0)
-        elif isinstance(module, nn.BatchNorm1d):
-            # BatchNorm initialization
-            init.constant_(module.weight, 1)
-            init.constant_(module.bias, 0)
-        elif isinstance(module, nn.LSTM):
-            # LSTM initialization
-            for name, param in module.named_parameters():
-                if "weight" in name:
-                    init.xavier_uniform_(param)
-                elif "bias" in name:
-                    init.constant_(param, 0)
-
-
-class GraphConvolution(nn.Module):
-    def __init__(self, in_channels, out_channels, bias=True):
-        super(GraphConvolution, self).__init__()
-        self.in_channels = in_channels
-        self.out_channels = out_channels
-        self.weight = nn.Parameter(torch.FloatTensor(in_channels, out_channels))
-
-        if bias:
-            self.bias = nn.Parameter(
-                torch.zeros((1, 1, out_channels), dtype=torch.float32))
-        else:
-            self.register_parameter('bias', None)
-        nn.init.xavier_uniform_(self.weight, gain=1.414)
-
-    def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.weight.size(1))
-        self.weight.data.uniform_(-stdv, stdv)
-        if self.bias is not None:
-            self.bias.data.uniform_(-stdv, stdv)
-
-    def forward(self, x, adj):
-        output = torch.matmul(x, self.weight) - self.bias
-        output = F.relu(torch.matmul(adj, output))
-        return output
-
-
 class gcn(nn.Module):
     def __init__(self, in_dim, out_dim, in_channel):
         super().__init__()
@@ -121,61 +75,6 @@ class WaveClassifier(nn.Module):
         return self.fc(h)
 
 
-class haveGCNLearnedadjBlock(nn.Module):  # 自学习adj
-    def __init__(self, num_rois, window_size, out_dim: int, num_window: int = 60):
-        super(haveGCNLearnedadjBlock, self).__init__()
-
-        self.window_size = window_size
-        self.num_rois = num_rois
-        self.out_dim = out_dim
-        self.num_window = num_window
-
-        self.hidden_dim = self.window_size
-        self.d_model = self.num_rois * self.hidden_dim
-        self.ln = nn.LayerNorm(self.d_model)
-
-        # MLP编码器 h^i = φ_MLP(X_i)
-        self.mlp = nn.Sequential(
-            nn.Linear(in_features=self.window_size, out_features=self.hidden_dim),
-            nn.ReLU(),
-            nn.Linear(in_features=self.hidden_dim, out_features=self.hidden_dim)
-        )
-        self.global_adj = nn.Parameter(torch.randn([num_rois, num_rois], dtype=torch.float32), requires_grad=True)
-        self.gcn = gcn(self.hidden_dim, self.hidden_dim, num_rois)
-        self.bn = nn.BatchNorm1d(self.num_rois)
-
-        self.fc = nn.Linear(self.hidden_dim * self.num_rois, out_dim)
-
-    def forward(self, x):
-        batch, windows, dim, length = x.shape
-        # 加残差
-        encoded_x = (self.mlp(x) + x).reshape(-1, dim, length)
-
-        feature = self.bn(encoded_x)
-
-        adj = self.get_adj(feature)
-        h = F.elu(self.gcn(feature, adj)) + feature
-
-        h = h.reshape(batch, windows, -1)  # [batch,window,num_rois*length]
-        x = self.fc(h)
-        return x
-
-    def get_adj(self, x, self_loop=True):
-        adj = torch.bmm(x, x.permute(0, 2, 1))
-        num_nodes = adj.shape[-1]
-        adj = F.relu(adj * (self.global_adj + self.global_adj.transpose(1, 0)))
-        if self_loop:
-            adj = adj + torch.eye(num_nodes).to(x.device)
-        rowsum = torch.sum(adj, dim=-1)
-        mask = torch.zeros_like(rowsum)
-        mask[rowsum == 0] = 1
-        rowsum += mask
-        d_inv_sqrt = torch.pow(rowsum, -0.5)
-        d_mat_inv_sqrt = torch.diag_embed(d_inv_sqrt)
-        adj = torch.bmm(torch.bmm(d_mat_inv_sqrt, adj), d_mat_inv_sqrt)
-        return adj
-
-
 class TimeNoGCNBlock(nn.Module):
     def __init__(self, num_rois, window_size, out_dim: int, num_window: int = 60):
         super(TimeNoGCNBlock, self).__init__()
@@ -228,7 +127,6 @@ class DualLSTMClassifier(nn.Module):
         self.embedding_dim = embedding_dim
 
         self.wave_block = WaveClassifier(num_bands, num_rois, embedding_dim)
-        # self.signal_block = haveGCNLearnedadjBlock(num_rois, window_size, embedding_dim, num_window)
         self.signal_block = TimeNoGCNBlock(num_rois, window_size, embedding_dim, num_window)
         self.fusion_block = FusionBlock(num_window, 64)
         self.d_model = embedding_dim * 2
