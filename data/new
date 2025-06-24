@@ -1,1 +1,1 @@
-
+The rs-fMRI datasets used were from ADNI-2 (https://adni.loni.usc.edu/) and ABIDE-II (https://fcon_1000.projects.nitrc.org/). For ADNI-2, we selected 135 healthy controls and 274 MCI patients (age range: 56-95 years). For ABIDE-II, we similarly selected 557 healthy controls and 496 ASD patients (age range: 5-64 years).
