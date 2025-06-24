@@ -6,6 +6,7 @@ import torch.nn as nn
 import torchmetrics
 from torch.utils.data import DataLoader
 from torchmetrics import MetricCollection
+""" The code is modified from torcheeg """
 
 _EVALUATE_OUTPUT = List[Dict[str, float]]  # 1 dict per DataLoader
 
