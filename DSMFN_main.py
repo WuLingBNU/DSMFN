@@ -12,18 +12,13 @@ import numpy as np
 import glob
 
 
-# 加载数据或生成数据的函数
 def load_or_generate_data(mat_folder_path, excel_file_path, output_file_path, if_load):
     if if_load == 0:
-        # 直接加载数据
         data = torch.load(output_file_path)
         all_data = data['all_data']
         all_labels = data['all_labels']
         all_ids = data['all_ids']
-        print("已加载现有的 .pt 文件数据。")
     else:
-        # 调用 read_data 函数生成数据
-        print("未找到 .pt 文件，正在生成数据...")
         read_data(mat_folder_path, excel_file_path, output_file_path)
         data = torch.load(output_file_path)
         all_data = data['all_data']
@@ -36,12 +31,12 @@ def load_or_generate_data(mat_folder_path, excel_file_path, output_file_path, if
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 if __name__ == "__main__":
     m_parser = argparse.ArgumentParser(description="")
-    m_parser.add_argument("--classes", type=int, default=2)  # 类别
+    m_parser.add_argument("--classes", type=int, default=2)  
     m_parser.add_argument("--lr", type=float, default=1e-3)  # 1e-3
     m_parser.add_argument("--batch_size", type=int, default=16)
     m_parser.add_argument("--window_size", type=int, default=90)  
     m_parser.add_argument("--window_step", type=int, default=1)  
-    m_parser.add_argument("--wavelet_level", type=int, default=1)  # 小波变换的层数
+    m_parser.add_argument("--wavelet_level", type=int, default=1)  
     m_parser.add_argument("--wavelet_fun", type=str, default="db4")  
     m_parser.add_argument("--if_load", type=int, default=0)
     m_parser.add_argument("--sum_fold", type=int, default=10)
@@ -55,7 +50,7 @@ if __name__ == "__main__":
 
     fast_dev_run = False
     utils.set_seed(args.seed)
-    # 加载ADNI2
+
     mat_folder_path = "data/ADNI2"
     excel_file_path = "data/ADNI2_processed_subjects.xlsx"
     output_file_path = "data/data_pt/ADNI2_output_data.pt"
@@ -63,7 +58,6 @@ if __name__ == "__main__":
 
     all_data, all_labels, all_ids = load_or_generate_data(mat_folder_path, excel_file_path, output_file_path,
                                                           args.if_load)
-    print("数据加载完毕！")  # [503, 130, 116]  [503,]
     all_data = all_data.transpose(-1, -2)  
 
     time_points = all_data.shape[-1]
@@ -82,9 +76,7 @@ if __name__ == "__main__":
         for arg, value in vars(args).items():
             f.write(f"{arg}: {value}\n")
 
-    for k, (train_idx, test_idx) in enumerate(skf.split(all_data, all_labels)):
-        print("当前是kfold{}".format(k))
-        
+    for k, (train_idx, test_idx) in enumerate(skf.split(all_data, all_labels)):      
         try:
             del train_data_loader, test_data_loader, val_data_loader, MyTrainer, train_data, train_label, test_data, test_label, val_data, val_label
         except:
@@ -120,7 +112,7 @@ if __name__ == "__main__":
                                                 level=args.wavelet_level,
                                                 delete_nan=False,
                                                 shuffle=False, num_worker=0)
-        # 模型定义
+
         num_window = train_data_loader.dataset.num_window
         model = DualLSTMClassifier(num_rois=num_brain_areas, window_size=args.window_size,
                                    num_bands=args.wavelet_level + 1, out_dim=args.classes, num_window=num_window,
@@ -128,19 +120,19 @@ if __name__ == "__main__":
 
         initialize_weights(model)
 
-        # 检查点回调 - 只保存最好的模型
+
         checkpoint_callback = ModelCheckpoint(
-            monitor='val_accuracy',  # 监控的指标名称
-            dirpath='results/MCI2/my_save_folder/checkpoints/DSMFNet_test/fold-{}'.format(k),  # 保存路径
-            filename='model-{epoch:02d}-{val_accuracy:.2f}',  # 文件名格式
-            save_top_k=1,  # 保存最好的 k 个模型
+            monitor='val_accuracy',  
+            dirpath='results/MCI2/my_save_folder/checkpoints/DSMFNet_test/fold-{}'.format(k),  
+            filename='model-{epoch:02d}-{val_accuracy:.2f}',  
+            save_top_k=1,  
             mode='max',  
         )
 
-        # 早停回调 - 这里可以设置最小提升阈值
+
         early_stop_callback = EarlyStopping(
             monitor='val_accuracy',
-            min_delta=0,  # 这里设置最小提升阈值
+            min_delta=0,  
             patience=args.max_epoch,
             verbose=True,
             mode='max'
