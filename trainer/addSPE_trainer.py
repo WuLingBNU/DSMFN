@@ -25,7 +25,7 @@ def classification_metrics(metric_list: List[str], num_classes: int):
                 f"{metric} is not allowed. Please choose 'precision', 'recall', 'f1score', 'accuracy', 'matthews', 'auroc', 'kappa', 'specificity'."
             )
 
-    class Specificity(torchmetrics.Metric):  # 只针对二分类
+    class Specificity(torchmetrics.Metric):  
         def __init__(self, num_classes: int, dist_sync_on_step: bool = False):
             super().__init__(dist_sync_on_step=dist_sync_on_step)
             self.num_classes = num_classes
@@ -43,7 +43,7 @@ def classification_metrics(metric_list: List[str], num_classes: int):
 
         def compute(self):
             specificity = self.true_negative / (self.true_negative + self.false_positive)
-            return specificity.mean()  # 返回宏平均特异性
+            return specificity.mean() 
 
     metric_dict = {
         'accuracy':
@@ -69,7 +69,7 @@ def classification_metrics(metric_list: List[str], num_classes: int):
             torchmetrics.AUROC(task='multiclass', num_classes=num_classes),
         'kappa':
             torchmetrics.CohenKappa(task='multiclass', num_classes=num_classes),
-        'specificity':  # 添加自定义特异性指标
+        'specificity': 
             Specificity(num_classes=num_classes)
     }
     metrics = [metric_dict[name] for name in metric_list]
