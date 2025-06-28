@@ -25,20 +25,17 @@ class WaveClassifier(nn.Module):
         self.num_rois = num_rois
         self.out_dim = out_dim
 
-        hidden_dim = num_rois  # 为了用残差，保持hidden_dim=输入时的维度
+        hidden_dim = num_rois  
         self.after_across_dim = hidden_dim * self.num_bands * hidden_dim
 
-        # MLP编码器 h^i = φ_MLP(A_i)
         self.mlp = nn.Sequential(
             nn.Linear(in_features=self.num_rois, out_features=hidden_dim),
             nn.ReLU(),
             nn.Linear(in_features=hidden_dim, out_features=hidden_dim)
         )
 
-        # 频段邻接矩阵融合
         self.alpha = nn.Conv2d(in_channels=self.num_bands, out_channels=1, kernel_size=1)
 
-        # 单频段图卷积层
         for i in range(num_bands):
             exec("self.gcn{}=gcn(self.num_rois, hidden_dim,self.num_rois)".format(i))
 
@@ -88,7 +85,6 @@ class TimeNoGCNBlock(nn.Module):
         self.d_model = self.num_rois * self.hidden_dim
         self.ln = nn.LayerNorm(self.d_model)
 
-        # MLP编码器 h^i = φ_MLP(X_i)
         self.mlp1 = nn.Sequential(
             nn.Linear(in_features=self.window_size, out_features=self.hidden_dim),
             nn.ReLU(),
@@ -103,7 +99,6 @@ class TimeNoGCNBlock(nn.Module):
 
     def forward(self, x):
         batch, windows, dim, length = x.shape
-        # 加残差
         encoded_x = (self.mlp1(x) + x).reshape(-1, dim, length)
 
         feature = self.bn(encoded_x)
@@ -116,7 +111,6 @@ class TimeNoGCNBlock(nn.Module):
 
 class DualLSTMClassifier(nn.Module):
     def __init__(self, num_rois, window_size, num_bands, out_dim: int, num_window: int = 60, embedding_dim: int = 64):
-        "forward接收的输入是一个tuple [raw_data,wave_matrix],形状分别为[batch,windows,rois,window_size] [batch,windows,num_bands,rois,rois]"
         super(DualLSTMClassifier, self).__init__()
 
         self.window_size = window_size
@@ -143,7 +137,7 @@ class DualLSTMClassifier(nn.Module):
         batch, windows, dim, length = data.shape
         mat_embedding = self.wave_block(mat)
         data_embedding = self.signal_block(data)
-        h = torch.stack([data_embedding, mat_embedding], dim=1)  # 形状是[b,2,window_size,emb_dim]
+        h = torch.stack([data_embedding, mat_embedding], dim=1) 
         h = self.fusion_block(h)
         h = self.ln(h)
 
@@ -167,7 +161,7 @@ class FusionBlock(nn.Module):
                                                 num_window, 1), nn.Softmax(1))
 
     def forward(self, x):
-        b, channel, h, w = x.shape  # 输入形状 [b,2,window_size,emb_dim]
+        b, channel, h, w = x.shape 
         s_attn = self.stream_attn(x)  # [b,2,1,1]
         seq_attn = self.seq_attn(x.transpose(1, 2))  # [b,window_size,1,1]
         attn = torch.bmm(s_attn.squeeze(-1), seq_attn.squeeze(-1).transpose(1, 2))  # [b,2,window_size]
