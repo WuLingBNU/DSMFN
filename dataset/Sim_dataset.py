@@ -10,17 +10,15 @@ class DualDataSet(Dataset):
     def __init__(self, data, label, size, step, wavelet='db20', level=3, delete_nan=False):
         super(DualDataSet, self).__init__()
         assert len(data.shape) == 3
-        data = data.unfold(-1, size=size, step=step).transpose(1, 2)  # data的形状是[被试，窗口，脑区，时间点]
+        data = data.unfold(-1, size=size, step=step).transpose(1, 2)  
         self.num_window = data.shape[1]
         if len(label.shape) > 1:
             label = label.squeeze(-1)
 
-        # 归一化
         data_min, _ = data.min(2)
         data_max, _ = data.max(2)
         data = (data - data_min.unsqueeze(2)) / (data_max.unsqueeze(2) - data_min.unsqueeze(2))
 
-        # 是否删除包含nan的样本，还是只将nan变成0
         if delete_nan:
             have_nan = torch.isnan(data).reshape(data.size(0), -1)
             have_nan = torch.any(have_nan, dim=1)
@@ -54,19 +52,16 @@ class DualDataSet(Dataset):
         if np.isnan(person_matrix).any():
             print(item)
             raise ValueError
-        try:  # 双数据流：初始滑窗信号，经过滑窗后小波变换后各个频段的功能连接
+        try:  
             self.cache[item] = ((raw_data.to(torch.float32), person_matrix.astype(np.float32)), self.label[item])
         except MemoryError:
             self._evict_cache()
-            # 尝试再次存储（此时内存应该已经释放）
             self.cache[item] = ((raw_data.to(torch.float32), person_matrix.astype(np.float32)), self.label[item])
 
         return self.cache[item]
 
     def _evict_cache(self):
-        """删除缓存中的某个项目以释放空间"""
         if self.cache:
-            # 随便删除缓存中的一个项目（可以换成更复杂的策略）
             evict_key = next(iter(self.cache.keys()))
             print(f"Evicting cached item with index: {evict_key}")
             del self.cache[evict_key]
